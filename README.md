@@ -1,4 +1,4 @@
-# VERO-V3.2 - Very - Efficient - Report - Organizer 
+# VERO - Very - Efficient - Report - Organizer 
 
 DOWNLOAD: 
 
