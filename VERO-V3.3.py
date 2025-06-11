@@ -1,20 +1,18 @@
-import tkinter as tk
-from tkinter import filedialog, messagebox
-from tkinter import ttk
 import pandas as pd
 import os
 import sys
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from tkinter import ttk
 from datetime import datetime, timedelta
 from PIL import Image, ImageTk
 
-
 def resource_path(relative_path):
-    """ Get the absolute path to resource, works for dev and PyInstaller """
+    """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
         base_path = sys._MEIPASS
-    except AttributeError:
+    except Exception:
         base_path = os.path.abspath(".")
-
     return os.path.join(base_path, relative_path)
 
 # Global
@@ -54,21 +52,31 @@ def adjust_time(current_time, diff, operation):
 
 #File Select Functions
 def select_cart_file():
-    global cart_cancelled_path
-    cart_cancelled_path = filedialog.askopenfilename(title="Select Cart Cancelled CSV", filetypes=[("CSV files", "*.csv")])
-    cart_file_label.config(text=f"Cart Cancelled File: {cart_cancelled_path if cart_cancelled_path else 'Not Selected'}")
+    file_path = filedialog.askopenfilename(title="Select Cart Cancelled File",
+    filetypes=[("CSV Files", "*.csv")]
+    )
+    if file_path:
+        cart_file_label.config(text=os.path.basename(file_path))
+        global cart_cancelled_path
+        cart_cancelled_path = file_path
 
 def select_sales_file():
-    global sales_item_path
-    sales_item_path = filedialog.askopenfilename(title="Select Sales Item CSV", filetypes=[("CSV files", "*.csv")])
-    sales_file_label.config(text=f"Sales Item File: {sales_item_path if sales_item_path else 'Not Selected'}")
-
+    file_path = filedialog.askopenfilename(title="Select Sales Item File",
+    filetypes=[("CSV Files", "*.csv")]
+    )
+    if file_path:
+        sales_file_label.config(text=os.path.basename(file_path))
+        global sales_item_path
+        sales_item_path = file_path
+        
 def select_output_folder():
-    global output_folder_path
-    output_folder_path = filedialog.askdirectory(title="Select Output Folder")
-    output_folder_label.config(text=f"Output Folder: {output_folder_path if output_folder_path else 'Not Selected'}")
-
-# Main Program Logic
+    folder_path = filedialog.askdirectory(title="Select Output Folder")
+    if folder_path:
+        output_folder_label.config(text=os.path.basename(folder_path))
+        global output_folder_path
+        output_folder_path = folder_path
+        
+# Main Program Logic - errors first
 def run_script_gui():
     if not cart_cancelled_path or not sales_item_path or not output_folder_path:
         messagebox.showerror("Error", "Please select all required files and output folder.")
@@ -87,7 +95,7 @@ def run_script_gui():
         return
 
     time_adjustment_option = time_adjustment_var.get()
-
+ # Time logic
     if time_adjustment_option != "no_adjustment":
         corrected_time_str = time_adjustment_entry.get()
         corrected_time = str_to_timedelta(corrected_time_str)
@@ -96,7 +104,7 @@ def run_script_gui():
             messagebox.showerror("Error", "Invalid time format. Please enter in HH:MM:SS or HHMMSS format.")
             return
         operation = "add" if time_adjustment_option == "add" else "subtract"
-
+         
         try:
             df1['TransactionDate'] = pd.to_datetime(df1['TransactionDate'], errors='coerce', utc=True)
             df2['MachineLocalTime'] = pd.to_datetime(df2['MachineLocalTime'], errors='coerce', utc=True)
@@ -109,7 +117,7 @@ def run_script_gui():
             return
 
     mark_option = mark_option_var.get()
-
+ 
     df1['TransactionDate'] = pd.to_datetime(df1['TransactionDate'], errors='coerce')
     df2['MachineLocalTime'] = pd.to_datetime(df2['MachineLocalTime'], errors='coerce')
 
@@ -131,19 +139,19 @@ def run_script_gui():
                     if confirm_behavior == "remove":
                         rows_to_remove.append(i)
                     elif confirm_behavior == "mark":
-                        df1.at[i, 'Product'] = f"{row1['Product']}====="
+                        df1.at[i, 'Product'] = f"{row1['Product']}====="        # mark rows
                     break
                 if row1['Product'] == row2['Product'] and time_diff <= 180 and row1['Kiosk'] != row2['Kiosk']:
                     if mark_option == "delete":
                         if confirm_behavior == "remove":
                             rows_to_remove.append(i)
                         elif confirm_behavior == "mark":
-                            df1.at[i, 'Product'] = f"{row1['Product']}====="
+                            df1.at[i, 'Product'] = f"{row1['Product']}====="    # mark rows
                     elif mark_option == "mark":
                         df1.at[i, 'Product'] = f"{row1['Product']}*****"
                     break
 
-    except Exception as e:
+    except Exception as e:          # It broke
         progress.stop()
         messagebox.showerror("Error", f"Processing failed: {e}")
         progress["value"] = 0
@@ -151,7 +159,7 @@ def run_script_gui():
 
     df1 = df1.drop(rows_to_remove)
 
-    # Organize columns; remove Kiosk
+    # Organize columns and specifically destory Kiosk
     df2 = df2[['Product', 'Price', 'MachineLocalTime', 'Kiosk']]
     df1 = df1[['Product', 'ItemPrice', 'Quantity', 'TransactionDate', 'Kiosk']]
 
@@ -192,10 +200,15 @@ def run_script_gui():
 root = tk.Tk()
 root.title("Report Wizard")
 root.configure(bg='#c0c0c0')
-root.geometry("550x525")
+root.geometry("715x550")
+root.resizable(False, False)
+
+import tkinter.font as tkfont
+default_font = tkfont.Font(family="MS Sans Serif", size=12)
+root.option_add("*Font", default_font)
 
 style = ttk.Style(root)      
-style.theme_use('clam')        
+style.theme_use('classic')        
 style.configure("Custom.Horizontal.TProgressbar",
                 troughcolor='#c0c0c0',
                 background='#000080',
@@ -209,68 +222,116 @@ main_frame = tk.Frame(root)
 main_frame.pack(fill='both', expand=True)
 
 
-side_frame = tk.Frame(main_frame, width=250, height=550, bg='#c0c0c0')
-side_frame.pack(side='left', anchor='w',fill='y')
-side_frame.pack_propagate(True)
+side_frame = tk.Frame(main_frame, width=200, height=425, bg='#c0c0c0')
+side_frame.pack(side='left', anchor='n')
+side_frame.pack_propagate(False)
 
+banner_dir = resource_path("Banners")
+banner_images = []
+banner_index = 0
 
-img = Image.open(resource_path("SideBanner.png"))
-
-max_width, max_height = 175, 375
-img_ratio = img.width / img.height  
-box_ratio = max_width / max_height  
-style.theme_use('clam')
-
-if img_ratio > box_ratio:
-    new_width = max_width
-    new_height = int(max_width / img_ratio)
-else:
-    new_height = max_height
-    new_width = int(max_height * img_ratio)
-
+img = Image.open(resource_path("Banner 1.png"))
+max_width = 200
+max_height = 425
+new_width, new_height = max_width, max_height
 img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
 tk_img = ImageTk.PhotoImage(img)
 
 side_label = tk.Label(side_frame, image=tk_img, bg='#c0c0c0')
 side_label.image = tk_img
 side_label.pack(expand=True) 
-
-
-content_frame = tk.Frame(main_frame, bg='#c0c0c0')
-content_frame.pack(side='left', fill='both', expand=False)
-
-
-
 content_frame = tk.Frame(main_frame, bg='#c0c0c0', padx=10, pady=10)
 content_frame.pack(side='left', fill='both', expand=True)
 
 
-cart_file_label = tk.Label(content_frame, text="Cart Cancelled File: Not Selected", bg='#c0c0c0', anchor='w')
-cart_file_label.pack(fill='x', pady=2)
 
-cart_file_button = tk.Button(content_frame, text="Select Cart Cancelled File", command=select_cart_file)
-cart_file_button.pack(pady=2, anchor='w')
+max_width, max_height = 175, 375
+box_ratio = max_width / max_height
 
-sales_file_label = tk.Label(content_frame, text="Sales Item File: Not Selected", bg='#c0c0c0', anchor='w')
-sales_file_label.pack(fill='x', pady=2)
+# find banners - 6 second timer
+banner_files = sorted(
+    f for f in os.listdir(banner_dir) if f.startswith("Banner") and f.endswith(".png")
+)
 
-sales_file_button = tk.Button(content_frame, text="Select Sales Item File", command=select_sales_file)
-sales_file_button.pack(pady=2, anchor='w')
+for banner_file in banner_files:
+    banner_path = os.path.join(banner_dir, banner_file)
+    try:
+        img = Image.open(banner_path)
+        img_ratio = img.width / img.height
+        if img_ratio > box_ratio:
+            new_width = max_width
+            new_height = int(max_width / img_ratio)
+        else:
+            new_height = max_height
+            new_width = int(max_height * img_ratio)
+        img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        tk_img = ImageTk.PhotoImage(img)
+        banner_images.append(tk_img)
+    except Exception as e:
+        print(f"Failed loading {banner_path}: {e}")
 
+if banner_images:
+    side_label.configure(image=banner_images[0])
+    side_label.image = banner_images[0]
+
+def rotate_banner():
+    global banner_index
+    if banner_images:
+        banner_index = (banner_index + 1) % len(banner_images)
+        side_label.configure(image=banner_images[banner_index])
+        side_label.image = banner_images[banner_index]
+    root.after(6000, rotate_banner)
+
+root.after(6000, rotate_banner)
+
+
+
+file_select_frame = tk.Frame(content_frame, bg='#c0c0c0')
+file_select_frame.pack(fill='x', pady=5)
+
+# Cart Cancelled
+cart_frame = tk.Frame(file_select_frame, bg='#c0c0c0')
+cart_frame.pack(side='left', padx=5, fill='y')
+
+cart_file_label = tk.Label(cart_frame, text="Cart Cancelled File: Not Selected", bg='#c0c0c0', anchor='w')
+cart_file_label.pack()
+
+cart_file_button = tk.Button(cart_frame, text="Select Cart Cancelled File", command=select_cart_file)
+cart_file_button.pack()
+cart_file_button.config(cursor="hand2")
+
+# Sales Item
+sales_frame = tk.Frame(file_select_frame, bg='#c0c0c0')
+sales_frame.pack(side='left', padx=5, fill='y')
+
+sales_file_label = tk.Label(sales_frame, text="Sales Item File: Not Selected", bg='#c0c0c0', anchor='w')
+sales_file_label.pack()
+
+sales_file_button = tk.Button(sales_frame, text="Select Sales Item File", command=select_sales_file)
+sales_file_button.pack()
+sales_file_button.config(cursor="hand2")
+
+# Output Folder
 output_folder_label = tk.Label(content_frame, text="Output Folder: Not Selected", bg='#c0c0c0', anchor='w')
-output_folder_label.pack(fill='x', pady=2)
+output_folder_label.pack(fill='y', pady=2)
 
 output_folder_button = tk.Button(content_frame, text="Select Output Folder", command=select_output_folder)
-output_folder_button.pack(pady=2, anchor='w')
+output_folder_button.pack(pady=2)
+output_folder_button.config(relief="raised", bd=2, highlightthickness=0)
+output_folder_button.config(cursor="hand2")
 
-
+main_frame.config(highlightbackground="black", highlightthickness=1)
+content_frame.config(highlightbackground="black", highlightthickness=1)
+side_frame.config(highlightbackground="black", highlightthickness=1)
+# ====time adjustments=====
 time_adjustment_var = tk.StringVar(value="no_adjustment")
 
 time_adjust_label = tk.Label(content_frame, text="Time Adjustment Options:", bg='#c0c0c0', anchor='w')
-time_adjust_label.pack(fill='x', pady=(10, 2))
+time_adjust_label.pack(fill='y', pady=(10, 2))
 
 frame_time_adjust = tk.Frame(content_frame, bg='#c0c0c0')
-frame_time_adjust.pack(fill='x', pady=2)
+frame_time_adjust.pack(fill='y', pady=2)
 
 no_adjustment_radio = tk.Radiobutton(frame_time_adjust, text="No Adjustment", variable=time_adjustment_var, value="no_adjustment", bg='#c0c0c0')
 no_adjustment_radio.pack(side='left', padx=5)
@@ -282,15 +343,18 @@ subtract_time_radio = tk.Radiobutton(frame_time_adjust, text="Subtract Time", va
 subtract_time_radio.pack(side='left', padx=5)
 
 time_adjustment_label = tk.Label(content_frame, text="Enter Time Adjustment (HH:MM:SS or HHMMSS):", bg='#c0c0c0', anchor='w')
-time_adjustment_label.pack(fill='x', pady=2)
+time_adjustment_label.pack(fill='y', pady=2)
 
 time_adjustment_entry = tk.Entry(content_frame)
-time_adjustment_entry.pack(fill='x', pady=2)
+time_adjustment_entry.pack(fill='y', pady=2)
 
 
 confirm_removal_var = tk.StringVar(value="remove")  # Default is to remove
 
 
+no_adjustment_radio.config(indicatoron=1)
+add_time_radio.config(indicatoron=1)
+subtract_time_radio.config(indicatoron=1)
 
 
 mark_option_var = tk.StringVar(value="mark")
@@ -321,7 +385,7 @@ delete_after_radio.pack(side='left', padx=5)
 
 keep_original_radio = tk.Radiobutton(frame_delete_originals, text="Keep Original Files", variable=delete_originals_var, value="keep", bg='#c0c0c0')
 keep_original_radio.pack(side='left', padx=5)
-
+# progress bar
 style.configure("Custom.Horizontal.TProgressbar",
     troughcolor='#c0c0c0',   
     background='#000080',    
@@ -354,9 +418,30 @@ root.update()
 width = root.winfo_width()
 height = root.winfo_height()
 
-
+# Bunch of configs for click inputs
 padding_width = 20
 padding_height = 100
+
+cart_file_button.config(relief="raised", bd=2)
+sales_file_button.config(relief="raised", bd=2)
+output_folder_button.config(relief="raised", bd=2)
+
+
+cart_frame.config(relief="sunken", bd=2)
+sales_frame.config(relief="sunken", bd=2)
+file_select_frame.config(relief="sunken", bd=2)
+
+for btn in [cart_file_button, sales_file_button, output_folder_button, run_button]:
+    btn.config(relief="raised", bd=2, cursor="hand2")
+
+
+for frame in [cart_frame, sales_frame, file_select_frame, content_frame, side_frame, main_frame]:
+    frame.config(relief="sunken", bd=2, highlightbackground="black", highlightthickness=1)
+
+
+for rb in [no_adjustment_radio, add_time_radio, subtract_time_radio, delete_radio, mark_radio, delete_after_radio, keep_original_radio, remove_matches_radio, mark_matches_radio]:
+    rb.config(indicatoron=1, bg='#c0c0c0')
+
 
 root.geometry(f"{width + padding_width}x{height + padding_height}")
 
