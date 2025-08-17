@@ -1,9 +1,9 @@
 # VERO - Very - Efficient - Report - Organizer 
 
-**DOWNLOAD: 
+DOWNLOAD: 
 
 For windows systems, please download the EXE avaliable under the "releases" tab to the right.
-**
+
 
 Purpose:
 	VERO is a quick and easy way to match the Sales Item file and Cart Cancelled file against each other. It will compare every row based on time. If an item appears within three minutes of each other on BOTH reports, It will automatically remove those rows. Those rows can be assumed to be an accidental cancellation of an item that was likely purchased in the following minute or so and can be skipped. 
